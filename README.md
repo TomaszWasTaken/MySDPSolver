@@ -7,8 +7,8 @@
 </p>
 <p align="center">
 <img src="https://render.githubusercontent.com/render/math?math=X\succcurlyeq 0" width=50px>
-</p>
-
+</p>  
+where `X ϵ S^n` is the optimization variable and `A_i`, `C`, and `b` are the data of the problem.
 ## Features
 
 ## Installation
