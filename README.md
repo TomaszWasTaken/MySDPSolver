@@ -6,7 +6,7 @@
 <img src="https://render.githubusercontent.com/render/math?math=\text{s.t.}\quad tr(A_{i}X) = b_{i},\quad\text{for}\:i=1:m" width=300px>
 </p>
 <p align="center">
-<img src="https://render.githubusercontent.com/render/math?math=X\succcurlyeq 0" width=100px>
+<img src="https://render.githubusercontent.com/render/math?math=X\succcurlyeq 0" width=50px>
 </p>
 
 ## References
