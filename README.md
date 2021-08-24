@@ -1,2 +1,1 @@
-# MySDPSolver
-A simple semidefinite interior-point solver written in Julia
+**MySDPSolver** is an interior-point solver meant for solving semidefinite programs.
