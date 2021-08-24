@@ -8,14 +8,6 @@
 <p align="center">
 <img src="https://render.githubusercontent.com/render/math?math=X\succcurlyeq 0" width=50px>
 </p>  
-where `X` is the optimization variable and `A_i`, `C`, and `b` are the problem data.  
-<p align="center">
-<img src="https://render.githubusercontent.com/render/math?math=    \begin{gathered}
-        \min_{X \in \mathbb{S}^n} \text{tr}(CX) \\
-        \text{s.t.} \qquad \text{tr}(A_i X) = b_i, \; i = 1,\text{…},m \\
-        X \succcurlyeq 0
-    \end{gathered}" width=130px>
-</p>
 ## Features
 
 ## Installation
