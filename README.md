@@ -13,7 +13,7 @@
 * __Requirements__: **MySDPSolver** uses the following packages:
      * [MathOptInterface.jl](https://github.com/jump-dev/MathOptInterface.jl)
      * [MKLSparse.jl](https://github.com/JuliaSparse/MKLSparse.jl)  
-     To install them, type the following command in the REPL:
+     To install them, type the following commands in the REPL:
      ```julia
      ] add MKLSparse
      ] add MathOptInterface
