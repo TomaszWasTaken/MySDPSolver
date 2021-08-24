@@ -1,4 +1,5 @@
-**MySDPSolver** is an interior-point solver meant for solving semidefinite programs. It implements a Mehrotra predictor-corrector algorithm, similar to the one presented in [[1]](#1). It was written as part of my master's thesis.
+**MySDPSolver** is an interior-point solver meant for solving semidefinite programs. It implements a Mehrotra predictor-corrector algorithm, similar to the one presented in [[1]](#1). It is written entirely in the Julia programming language. It was created as part of my master's thesis. It can solve problems of the following form:
+<img src="https://render.githubusercontent.com/render/math?math=e^{i \pi} = -1">
 
 ## References
 <a id="1">[1]</a> 
