@@ -11,6 +11,7 @@
 
 ## Installation  
 * __Requirements__: **MySDPSolver** uses the following packages:
+     * [MKLSparse.jl](https://github.com/JuliaSparse/MKLSparse.jl)
 ## Usage  
 
 Let us solve a simple problem using **MySDPSolver** and [JuMP](https://github.com/JuliaOpt/JuMP.jl).
