@@ -9,13 +9,29 @@
 <img src="https://render.githubusercontent.com/render/math?math=X\succcurlyeq 0" width=50px>
 </p>  
 
-## Features
-
 ## Installation
 
-## Usage
+## Usage  
 
+Let us solve a simple problem using **MySDPSolver** and [JuMP](https://github.com/JuliaOpt/JuMP.jl).
+```julia
+# Load packages
+using MySDPSolver, JuMP, LinearAlgebra
+# Define the data
+C = [2.0 1.0
+     1.0 2.0]
+A = [1.0 0.0
+     0.0 0.0]
+b = 1.0
+# Create the model
+model = Model(MySDPSolver.Optimizer)
+@variable(model, X[1:2,1:2], SDP)
+@objective(model, Min, tr(C*X))
+@constraint(model, tr(A*X) == b)
+# Call the solving routine
+optimize!(model)
 
+```
 ## References
 <a id="1">[1]</a> 
 R. H. Tütüncü and K. C. Toh and M. J. Todd (2003).
