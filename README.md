@@ -21,7 +21,7 @@
 * __Download the source code__: Download the whole project folder.  
 * __Activate the package__: Type the following in the REPL:  
      ```julia
-     ] activate MySDPSolver/.
+     ] activate path/to/MySDPSolver/.
      ```
 ## Usage  
 
