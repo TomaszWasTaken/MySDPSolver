@@ -9,8 +9,8 @@
 <img src="https://render.githubusercontent.com/render/math?math=X\succcurlyeq 0" width=50px>
 </p>  
 
-## Installation
-
+## Installation  
+* __Requirements__: **MySDPSolver** uses the following packages:
 ## Usage  
 
 Let us solve a simple problem using **MySDPSolver** and [JuMP](https://github.com/JuliaOpt/JuMP.jl).
