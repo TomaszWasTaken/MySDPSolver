@@ -3,7 +3,7 @@
 <img src="https://render.githubusercontent.com/render/math?math=\min\limits_{X\in \mathbb{S}^{n}}\:tr(CX)" width=130px>
 </p>
 <p align="center">
-<img src="https://render.githubusercontent.com/render/math?math=\text{s.t.}\: tr(A_{i}X) = b_{i},\:\text{for}\:i=1:m" width=300px>
+<img src="https://render.githubusercontent.com/render/math?math=\text{s.t.}\: tr(A_{i}X) = b_{i},\:\text{for}\:i=1:m" width=280px>
 </p>
 <p align="center">
 <img src="https://render.githubusercontent.com/render/math?math=X\succcurlyeq 0" width=50px>
