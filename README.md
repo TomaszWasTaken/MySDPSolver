@@ -15,7 +15,7 @@
      * [MKLSparse.jl](https://github.com/JuliaSparse/MKLSparse.jl)  
      To install them, type the following commands in the REPL:
      ```julia
-     ] add MKLSparse
+     ] add MKLSparse # ']' stands for the 'package' mode, double backspace to exit
      ] add MathOptInterface
      ```
 * __Download the source code__: Download the whole project folder.  
