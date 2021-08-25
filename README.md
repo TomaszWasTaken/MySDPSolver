@@ -43,6 +43,17 @@ model = Model(MySDPSolver.Optimizer)
 # Call the solving routine
 optimize!(model)
 
+```  
+Let us show how to solve problems stored in the [SDPA file format](http://plato.asu.edu/ftp/sdpa_format.txt).
+```julia
+# Load packages
+using MySDPSolver, JuMP, Dualization
+# read and dualize the model
+model = dualize(JuMP.read_from_file("path/to/sdpa_file/dat-s")
+# set the optimizer
+set_optimizer!(model, MySDPSolver.Optimizer)
+# Call the solver
+optimize!(model)
 ```
 ## References
 <a id="1">[1]</a> 
