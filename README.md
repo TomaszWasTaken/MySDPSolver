@@ -48,9 +48,9 @@ Let us show how to solve problems stored in the [SDPA file format](http://plato.
 ```julia
 # Load packages
 using MySDPSolver, JuMP, Dualization
-# read and dualize the model
-model = dualize(JuMP.read_from_file("path/to/sdpa_file/dat-s")
-# set the optimizer
+# Read and dualize the model. Dualizing makes the model easier to solve.
+model = dualize(JuMP.read_from_file("path/to/sdpa_file/arch0.dat-s")
+# Set the optimizer
 set_optimizer!(model, MySDPSolver.Optimizer)
 # Call the solver
 optimize!(model)
