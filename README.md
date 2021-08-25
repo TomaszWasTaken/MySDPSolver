@@ -37,7 +37,7 @@ A = [1.0 0.0
 b = 1.0
 # Create the model
 model = Model(MySDPSolver.Optimizer)
-@variable(model, X[1:2,1:2], SDP)
+@variable(model, X[1:2,1:2], PSD)
 @objective(model, Min, tr(C*X))
 @constraint(model, tr(A*X) == b)
 # Call the solving routine
