@@ -86,23 +86,6 @@ end
 
 MOI.get(optimizer::Optimizer, ::MOI.Silent) = optimizer.silent
 
-
-
-# Base.hash(p, u::UInt64) = hash(convert(Int32, p), u)
-
-# const RAW_STATUS = Dict(
-#     noINFO     => "The iteration has exceeded the maxIteration and stopped with no informationon the primal feasibility and the dual feasibility.",
-#     pdOPT      => "The normal termination yielding both primal and dual approximate optimal solutions.",
-#     pFEAS      => "The primal problem got feasible but the iteration has exceeded the maxIteration and stopped.",
-#     dFEAS      => "The dual problem got feasible but the iteration has exceeded the maxIteration and stopped.",
-#     pdFEAS     => "Both primal problem and the dual problem got feasible, but the iterationhas exceeded the maxIteration and stopped.",
-#     pdINF      => "At least one of the primal problem and the dual problem is expected to be infeasible.",
-#     pFEAS_dINF => "The primal problem has become feasible but the dual problem is expected to be infeasible.",
-#     pINF_dFEAS => "The dual problem has become feasible but the primal problem is expected to be infeasible.",
-#     pUNBD      => "The primal problem is expected to be unbounded.",
-#     dUNBD => "The dual problem is expected to be unbounded.")
-
-
 function MOI.get(optimizer::Optimizer, ::MOI.RawStatusString)
     if optimizer.problem === nothing
         return "`MOI.optimize!` not called."
@@ -166,7 +149,6 @@ end
 MOIU.supports_allocate_load(::Optimizer, copy_names::Bool) = !copy_names
 
 function MOIU.allocate(optimizer::Optimizer, ::MOI.ObjectiveSense, sense::MOI.OptimizationSense)
-    # To be sure that it is done before load(optimizer, ::ObjectiveFunction, ...), we do it in allocate
     optimizer.objsign = sense == MOI.MIN_SENSE ? -1 : 1
 end
 
@@ -183,19 +165,7 @@ varmap(optimizer::Optimizer, vi::MOI.VariableIndex) = optimizer.varmap[vi.value]
 
 # Loads objective coefficient α * vi
 function load_objective_term!(optimizer::Optimizer, α, vi::MOI.VariableIndex)
-    blk, i, j = varmap(optimizer, vi)
-    coef = optimizer.objsign * α
-    if i != j
-        coef /= sqrt(2.0)
-    end
-	# println("blk, i, j, coef: ", blk,", ", i,", ",j,", ", coef)
 
-	# push!(optimizer.problem.Data.I_obj, i)
-	# push!(optimizer.problem.Data.J_obj, j)
-	# push!(optimizer.problem.Data.V_obj, coef)
-	# inputElement(optimizer.problem, 0, blk, i, j, float(coef), false)
-    # in SDP format, it is max and in MPB Conic format it is min
-    # inputElement(optimizer.problem, 0, blk, i, j, float(coef), false)
 end
 
 function MOIU.load(optimizer::Optimizer, ::MOI.ObjectiveFunction, f::MOI.ScalarAffineFunction)
@@ -213,19 +183,19 @@ function MOIU.load(optimizer::Optimizer, ::MOI.ObjectiveFunction, f::MOI.ScalarA
 
     for t in obj.terms
         if !iszero(t.coefficient)
-			blk, i, j = varmap(optimizer, t.variable_index)
+	    blk, i, j = varmap(optimizer, t.variable_index)
             coef = t.coefficient
-			# The canonical repr. sums the same variables,
-			# ex. for symmetric matrix var., X[1,2] == X[2,1],
-			# and since only one is kept, the coefficient will be doubled.
+		# The canonical repr. sums the same variables,
+		# ex. for symmetric matrix var., X[1,2] == X[2,1],
+		# and since only one is kept, the coefficient will be doubled.
             if i != j
                 coef /= 2
             end
-			# Push the element to the corresponding entry
-			# in the corresponding block.
-			push!(I_s[blk], i)
-			push!(J_s[blk], j)
-			push!(V_s[blk], coef)
+		# Push the element to the corresponding entry
+		# in the corresponding block.
+		push!(I_s[blk], i)
+		push!(J_s[blk], j)
+		push!(V_s[blk], coef)
         end
     end
 	# Vectorize the matrices and update the inner problem in the Optimizer.
@@ -314,9 +284,9 @@ function MOIU.load_constraint(m::Optimizer, ci::AFFEQ,
             if i != j
                 coef /= 2
             end
-			push!(I_s[blk], i)
-			push!(J_s[blk], j)
-			push!(V_s[blk], -coef)
+		push!(I_s[blk], i)
+		push!(J_s[blk], j)
+		push!(V_s[blk], -coef)
         end
     end
 
@@ -455,6 +425,5 @@ function MOI.get(optimizer::Optimizer, attr::MOI.ConstraintPrimal,
 end
 
 function MOI.get(optimizer::Optimizer, attr::MOI.ConstraintDual, ci::AFFEQ)
-    # MOI.check_result_index_bounds(optimizer, attr)
     return -optimizer.problem.y[ci.value]
 end
