@@ -388,7 +388,9 @@ function solve!(prb::inner_problem)
 
         α = min(1.0, g*minimum(αs))
         β = min(1.0, g*minimum(βs))
-
+        
+        g = 0.9 + 0.09*min(α, β)
+                                                                                                                                                
         BLAS.axpy!(α, δX, X0)
         BLAS.axpy!(β, δS, S0)
         BLAS.axpy!(β, δy, y0)
