@@ -1,3 +1,7 @@
+#=
+    The inner_problem structure.
+=#
+
 mutable struct inner_problem
 	# structure
 	block_dims::Vector{Int64}
