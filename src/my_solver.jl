@@ -1,5 +1,6 @@
-# include("utils.jl")
-# include("problem.jl")
+#=
+    The main algorithm.
+=#
 
 function solve!(prb::inner_problem)
     # Set up BLAS
