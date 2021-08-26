@@ -371,12 +371,12 @@ function solve!(prb::inner_problem)
                 fast_smat!(U[index], δX[blocks[j]])
                 BLAS.trsm!('R','U','N','N', 1.0, L[index], U[index])
                 BLAS.trsm!('L','U','T','N', 1.0, L[index], U[index])
-                λ_a = LAPACK.syev!('N','U', U[index])[1]
+                λ_a = LAPACK.syevr!('N','I','U', U[index], 0.0, 0.0, 1, 1, 1e-6)[1][1]
 
                 fast_smat!(U2[index], δS[blocks[j]])
                 BLAS.trsm!('R','U','N','N', 1.0, R[index], U2[index])
                 BLAS.trsm!('L','U','T','N', 1.0, R[index], U2[index])
-                λ_b = LAPACK.syev!('N','U', U2[index])[1]
+                λ_b = LAPACK.syevr!('N','I','U', U2[index], 0.0, 0.0, 1, 1, 1e-6)[1][1]                                                                                                      
 
             else
                 λ_a = minimum(δX[blocks[j]] ./ X0[blocks[j]])
