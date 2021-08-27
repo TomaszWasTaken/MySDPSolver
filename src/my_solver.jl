@@ -1,6 +1,5 @@
-#=
-    The main algorithm.
-=#
+# include("utils.jl")
+# include("problem.jl")
 
 function solve!(prb::inner_problem)
     # Set up BLAS
@@ -103,9 +102,14 @@ function solve!(prb::inner_problem)
     # We take the biggest semidefinite block.
     N_MAX = (n_sdp_blocks > 0) ? maximum(abs(ns[j+1]) for j in 1:nblocks if sdp_blocks_indices[j] > 0) : 1
     # The vectors needed for a CSC sparse matrix.
-    col_cache = Vector{Int64}(undef, N_MAX+1)
-    row_cache = Vector{Int64}(undef, NNZ_MAX)
+    col_cache = Vector{BlasInt}(undef, N_MAX+1)
+    row_cache = Vector{BlasInt}(undef, NNZ_MAX)
     nnz_cache = Vector{Float64}(undef, NNZ_MAX)
+
+    # Print the header if verbose
+    if prb.verbose == true
+        @printf("iter   |   pobj (scal.)  |   dobj (scal.)\n")
+    end
 
     #=
     Main loop
@@ -154,7 +158,6 @@ function solve!(prb::inner_problem)
         dinfeas = norm(Rd) / (1.0 + norm(prb.C))
         φ = max(pinfeas, dinfeas)
 
-# @time begin
         for j = 1:nblocks
             if sdp_blocks_indices[j] > 0
                 index = sdp_blocks_indices[j]
@@ -371,12 +374,12 @@ function solve!(prb::inner_problem)
                 fast_smat!(U[index], δX[blocks[j]])
                 BLAS.trsm!('R','U','N','N', 1.0, L[index], U[index])
                 BLAS.trsm!('L','U','T','N', 1.0, L[index], U[index])
-                λ_a = LAPACK.syevr!('N','I','U', U[index], 0.0, 0.0, 1, 1, 1e-6)[1][1]
+                λ_a = LAPACK.syev!('N','U', U[index])[1]
 
                 fast_smat!(U2[index], δS[blocks[j]])
                 BLAS.trsm!('R','U','N','N', 1.0, R[index], U2[index])
                 BLAS.trsm!('L','U','T','N', 1.0, R[index], U2[index])
-                λ_b = LAPACK.syevr!('N','I','U', U2[index], 0.0, 0.0, 1, 1, 1e-6)[1][1]                                                                                                      
+                λ_b = LAPACK.syev!('N','U', U2[index])[1]
 
             else
                 λ_a = minimum(δX[blocks[j]] ./ X0[blocks[j]])
@@ -388,9 +391,9 @@ function solve!(prb::inner_problem)
 
         α = min(1.0, g*minimum(αs))
         β = min(1.0, g*minimum(βs))
-        
+
         g = 0.9 + 0.09*min(α, β)
-                                                                                                                                                
+
         BLAS.axpy!(α, δX, X0)
         BLAS.axpy!(β, δS, S0)
         BLAS.axpy!(β, δy, y0)
@@ -398,8 +401,9 @@ function solve!(prb::inner_problem)
         pinfeas = norm(rp) / (1.0 + norm(prb.b))
         dinfeas = norm(Rd) / (1.0 + norm(prb.C))
 
+        # Print iteration info if verbose
         if prb.verbose == true
-            @printf("iter: %2d  |  p_obj: %.3e  |  d_obj: %.3e\n", iter, BLAS.dot(prb.C, X0), BLAS.dot(prb.b, y0))
+            @printf("%2d     |  %.3e     |  %.3e\n", iter, BLAS.dot(prb.C, X0), BLAS.dot(prb.b, y0))
         end
 
         iter += 1
@@ -407,6 +411,20 @@ function solve!(prb::inner_problem)
             break
         end
 
+    end
+
+    # Print the last iteration info
+    if prb.verbose == true
+        @printf("%2d     |  %.3e     |  %.3e\n", iter, BLAS.dot(prb.C, X0), BLAS.dot(prb.b, y0))
+    end
+
+    # Infeasibility tests
+    inftol = 1e-8
+    if BLAS.dot(prb.b, y0) / norm(prb.A*y0 + S0) > 1/inftol
+        println("Primal likely infeasible")
+    end
+    if -BLAS.dot(prb.C, X0) / norm(prb.A'*X0) > 1/inftol
+        println("Dual likely infeasible")
     end
 
     prb.num_iters = iter
@@ -430,6 +448,7 @@ function solve!(prb::inner_problem)
     end
 
     if prb.verbose == true
+        println("")
         println("Primal value: ", BLAS.dot(prb.C, X0))
         println("Dual value: ", BLAS.dot(prb.b, y0))
         println("N iters: ", iter)

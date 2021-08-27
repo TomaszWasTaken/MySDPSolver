@@ -1,13 +1,9 @@
-#=
-    The inner_problem structure.
-=#
-
 mutable struct inner_problem
 	# structure
 	block_dims::Vector{Int64}
 	m::Int64
 	# Data
-	A::SparseMatrixCSC{Float64, Int64}
+	A::SparseMatrixCSC{Float64, BlasInt}
 	b::Vector{Float64}
 	C::Vector{Float64}
 
@@ -70,11 +66,10 @@ function scale_inner_problem!(prb::inner_problem)
 		BLAS.scal!(blk_sizes[j+1], 1.0 / (prb.normC * prb.normsA[j]), prb.S[blocks[j]], 1)
 	end
 
+	# Scale A
 	for j = 1:nblocks
 		@. prb.A[blocks[j], :] /= prb.normsA[j]
 	end
-
-
 end
 
 function generate_init!(prb::inner_problem)
@@ -90,18 +85,35 @@ function generate_init!(prb::inner_problem)
 	blocks = [blk_indices[j]+1:blk_indices[j+1] for j = 1:nblocks]
 	n_elems = sum(blk_sizes)
 
+	#=
+	Compute the actual scaling coefficients.
+	=#
 	@views for j = 1:nblocks
-		for k = 1:length(prb.b)
-			temp1[k] = (1.0 + abs(prb.b[k])) / (1.0 + norm(prb.A[blocks[j], k]))
-			temp2[k] = norm(prb.A[blocks[j], k])
+		if prb.block_dims[j] < 0
+			for k = 1:length(prb.b)
+				temp1[k] = (1.0 + abs(prb.b[k])) / (1.0 + norm(prb.A[blocks[j], k]))
+				temp2[k] = norm(prb.A[blocks[j], k])
+			end
+			ξ[j] = max(1.0, maximum(temp1))
+			η[j] = max(1.0, 1.0/sqrt(abs(prb.block_dims[j])) * (1.0 + max(maximum(temp2), norm(prb.C[blocks[j]]))))
+		else
+			for k = 1:length(prb.b)
+				temp1[k] = (1.0 + abs(prb.b[k])) / (1.0 + norm(prb.A[blocks[j], k]))
+				temp2[k] = norm(prb.A[blocks[j], k])
+			end
+			sqrt_s = sqrt(prb.block_dims[j])
+			ξ[j] = sqrt_s*max(1.0, sqrt_s*maximum(temp1))
+			η[j] = sqrt_s*max(1.0, (1.0/sqrt_s) * (1.0 + max(maximum(temp2), norm(prb.C[blocks[j]]))))
 		end
-		ξ[j] = abs(prb.block_dims[j]) * maximum(temp1)
-		η[j] = (1.0/sqrt(abs(prb.block_dims[j]))) * (1.0 + max(maximum(temp2), norm(prb.C[blocks[j]])))
 	end
 
 	X0 = zeros(Float64, n_elems)
 	S0 = zeros(Float64, n_elems)
 
+	#=
+	Initialize the iterates.
+	TODO: not the most efficient way, but performed only once.
+	=#
 	@views for j = 1:nblocks
 		if prb.block_dims[j] > 0
 			X0[blocks[j]] = svec(ξ[j]*Matrix{Float64}(I, abs(prb.block_dims[j]), abs(prb.block_dims[j])))

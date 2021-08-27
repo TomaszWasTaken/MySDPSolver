@@ -247,8 +247,8 @@ function sparse_A_mul(C, a, B, colptr, rowval, nzval)
     n = size(B, 1)
     NNZ = length(a.nzind)
 
-    fill!(colptr, zero(Int64))
-    fill!(rowval, zero(Int64))
+    fill!(colptr, zero(BlasInt))
+    fill!(rowval, zero(BlasInt))
     fill!(nzval, zero(Float64))
 
     for k = 1:length(a.nzind)
@@ -263,7 +263,7 @@ function sparse_A_mul(C, a, B, colptr, rowval, nzval)
         colptr[k+1] += colptr[k]
     end
 
-    mat = SparseMatrixCSC{Float64, Int64}(n, n, colptr, rowval, nzval)
+    mat = SparseMatrixCSC{Float64, BlasInt}(n, n, colptr, rowval, nzval)
     # display(colptr)
     MKLSparse.BLAS.cscmm!('N', 1.0, "SUNF", mat, B, 0.0, C)
 end
