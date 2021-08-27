@@ -1,0 +1,14 @@
+name = "MySDPSolver"
+uuid = "24f5d99e-d2fe-4fcc-837b-fd1224153e0f"
+authors = ["Tomasz Kwaśniewicz"]
+version = "0.1.0"
+
+[deps]
+CSV = "336ed68f-0bac-5ca0-87d4-7b16caf5d00b"
+DataFrames = "a93c6f00-e57d-5684-b7b6-d8193f3e46c0"
+LinearAlgebra = "37e2e46d-f89d-539d-b4ee-838fcccc9c8e"
+Logging = "56ddb016-857b-54e1-b83d-db4d58db5568"
+MKLSparse = "0c723cd3-b8cd-5d40-b370-ba682dde9aae"
+MathOptInterface = "b8f27783-ece8-5eb3-8dc8-9495eed66fee"
+Printf = "de0858da-6303-5e67-8744-51eddeeeb8d7"
+SparseArrays = "2f01184e-e22b-5df5-ae63-d93ebab69eaf"
