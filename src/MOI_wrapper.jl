@@ -409,26 +409,17 @@ end
 function MOI.get(optimizer::Optimizer, attr::MOI.VariablePrimal, vi::MOI.VariableIndex)
     blk, i, j = varmap(optimizer, vi)
     scaling = (i==j) ? 1.0 : 1.0/sqrt(2.0)
-    index = Int(sum([(elem > 0) ? elem*(elem+1)÷2 : abs(elem) for elem in optimizer.blockdims[1:blk-1]])) + 1
-    if j >= i
-        for ii = 1:abs(optimizer.blockdims[blk])
-            for jj = 1:ii
-                if (ii, jj) == (i, j)
-                    return scaling*optimizer.problem.X[index]
-                end
-                index += 1
-            end
-        end
-    else
-        for ii = 1:abs(optimizer.blockdims[blk])
-            for jj = 1:optimizer.blockdims[blk]
-                if (jj, ii) == (i, j)
-                    return scaling*optimizer.problem.X[index]
-                end
-                index += 1
-            end
-        end
-    end
+	index = sum([(elem > 0) ? elem*(elem+1)÷2 : abs(elem) for elem in optimizer.blockdims[1:blk-1]])
+	if optimizer.blockdims[blk] > 0
+		if j ≤ i
+			index += sum(1:j) - (j-i)
+		else
+			index += sum(1:i) - (i-j)
+		end
+	else
+		index += abs(i)
+	end
+	return scaling*optimizer.problem.X[index]
 end
 
 function MOI.get(optimizer::Optimizer, attr::MOI.ConstraintDual,

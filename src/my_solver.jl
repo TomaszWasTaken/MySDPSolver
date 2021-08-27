@@ -44,7 +44,8 @@ function solve!(prb::inner_problem)
     φ = max(pinfeas, dinfeas)
     solution_relgap = prb.ε_relgap  # default value: 1e-6
     solution_φ = prb.ε_φ            # default value: 1e-6
-    g = 0.9
+    g = 0.9                         # if adaptative
+    # g = 0.98                        # if constant
 
     sdp_blocks_indices = zeros(Int64, nblocks)
     n_sdp_blocks = 0
@@ -392,7 +393,7 @@ function solve!(prb::inner_problem)
         α = min(1.0, g*minimum(αs))
         β = min(1.0, g*minimum(βs))
 
-        g = 0.9 + 0.09*min(α, β)
+        g = 0.9 + 0.09*min(α, β)  # adaptative update
 
         BLAS.axpy!(α, δX, X0)
         BLAS.axpy!(β, δS, S0)
