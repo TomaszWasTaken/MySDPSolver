@@ -10,7 +10,7 @@
     st  p'u = q
         ‖u- u0‖₂ ≤ t  (second-order cone)
 
-    Since second-order programming is a special case of SPD,
+    Since second-order programming is a special case of SDP,
     it can be reformulated accordingly. This example illustrates
     the reformulation capabilities of JuMP/MathOptInterface.
     Indeed, second-order cones were not implemented in MySDPSolver,
