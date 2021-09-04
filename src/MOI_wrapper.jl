@@ -411,8 +411,10 @@ function MOI.get(optimizer::Optimizer, attr::MOI.VariablePrimal, vi::MOI.Variabl
     scaling = (i==j) ? 1.0 : 1.0/sqrt(2.0)
 	index = sum([(elem > 0) ? elem*(elem+1)÷2 : abs(elem) for elem in optimizer.blockdims[1:blk-1]])
 	if optimizer.blockdims[blk] > 0
-		if j ≤ i
+		if j > i
 			index += sum(1:j) - (j-i)
+		elseif i == j
+			index += sum(1:j)
 		else
 			index += sum(1:i) - (i-j)
 		end
