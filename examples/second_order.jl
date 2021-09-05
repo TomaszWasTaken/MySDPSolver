@@ -42,8 +42,8 @@ optimize!(model)
 # Retrieve the solutions
 println("t:")
 display(value(t))
-println("y:")
-display(value.(y))
+println("u:")
+display(value.(u))
 
 # We can get the dual solutions as well
 println("dual solutions:")
