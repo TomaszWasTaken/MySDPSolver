@@ -42,7 +42,7 @@ optimize!(model)
 # Retrieve the solutions
 println("t:")
 display(value(t))
-println("u:")
+println("u: ")
 display(value.(u))
 
 # We can get the dual solutions as well
