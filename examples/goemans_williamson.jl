@@ -2,6 +2,10 @@ using MySDPSolver, JuMP, LinearAlgebra          # -> opti
 using LightGraphs, GraphPlot, Gadfly, Colors    # -> graphs + plots
 using Random, Distributions                     # -> random
 
+#=
+Simple example illustrating the Goemans-Williamson approach for the max-cut
+as in http://www.cs.toronto.edu/~toni/Courses/Proofs-SOS-2018/Lectures/maxcut.pdf
+=#
 function GW(g::SimpleGraph)
     # Get the laplacian of g
     L = laplacian_matrix(g)
