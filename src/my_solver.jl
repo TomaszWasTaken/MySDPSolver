@@ -5,9 +5,9 @@ function solve!(prb::inner_problem)
     # Set up BLAS
     BLAS.set_num_threads(4)
 
-    X0 = prb.X
-    y0 = prb.y
-    S0 = prb.S
+    # prb.X = prb.X
+    # prb.y = prb.y
+    # prb.S = prb.S
 
     #=
     Compute the corresponding linear indices for each block.
@@ -29,16 +29,16 @@ function solve!(prb::inner_problem)
 
     BLAS.blascopy!(prb.m, prb.b, 1, rp, 1)  # b ← rp
     BLAS.blascopy!(n, prb.C, 1, Rd, 1)      # svec(C) ← Rd
-    BLAS.axpy!(-1.0, S0, Rd)                # Rd - S0 ← Rd
+    BLAS.axpy!(-1.0, prb.S, Rd)                # Rd - prb.S ← Rd
 
-    MKLSparse.BLAS.cscmv!('T', -1.0, "GU2F", prb.A, X0, 1.0, rp)  # b - 𝓐X0 ← rp
-    MKLSparse.BLAS.cscmv!('N', -1.0, "GU2F", prb.A, y0, 1.0, Rd)  # Rd - S0 - 𝓐ᵀy0 ← Rd
+    MKLSparse.BLAS.cscmv!('T', -1.0, "GU2F", prb.A, prb.X, 1.0, rp)  # b - 𝓐prb.X ← rp
+    MKLSparse.BLAS.cscmv!('N', -1.0, "GU2F", prb.A, prb.y, 1.0, Rd)  # Rd - prb.S - 𝓐ᵀprb.y ← Rd
 
     #=
     Compute μ and other statistics.
     =#
-    μ = BLAS.dot(X0, S0) / N
-    relgap = BLAS.dot(X0, S0) / (1.0 + max(abs(BLAS.dot(prb.C, X0)), abs(BLAS.dot(prb.b, y0))))
+    μ = BLAS.dot(prb.X, prb.S) / N
+    relgap = BLAS.dot(prb.X, prb.S) / (1.0 + max(abs(BLAS.dot(prb.C, prb.X)), abs(BLAS.dot(prb.b, prb.y))))
     pinfeas = norm(rp) / (1.0 + norm(prb.b))
     dinfeas = norm(Rd) / (1.0 + norm(prb.C))
     φ = max(pinfeas, dinfeas)
@@ -66,8 +66,24 @@ function solve!(prb::inner_problem)
     U = [Matrix{Float64}(undef, abs(ns[j+1]), abs(ns[j+1])) for j in 1:nblocks if sdp_blocks_indices[j] > 0]
     U2 = [Matrix{Float64}(undef, abs(ns[j+1]), abs(ns[j+1])) for j in 1:nblocks if sdp_blocks_indices[j] > 0]
     U3 = [Matrix{Float64}(undef, abs(ns[j+1]), abs(ns[j+1])) for j in 1:nblocks if sdp_blocks_indices[j] > 0]
-    U4 = [Matrix{Float64}(undef, abs(ns[j+1]), abs(ns[j+1])) for j in 1:nblocks if sdp_blocks_indices[j] > 0]
-    U5 = [Matrix{Float64}(undef, abs(ns[j+1]), abs(ns[j+1])) for j in 1:nblocks if sdp_blocks_indices[j] > 0]
+
+    # MAX_SDP_BLOCK_SIZE = maximum(abs(ns[j+1]) for j in 1:nblocks if sdp_blocks_indices[j] > 0)
+    # SDP_SIZE = [ns[j+1] for j in 1:nblocks if sdp_blocks_indices[j] > 0]
+    # U_ = Matrix{Float64}(undef, MAX_SDP_BLOCK_SIZE, MAX_SDP_BLOCK_SIZE)
+    # U2_ = Matrix{Float64}(undef, MAX_SDP_BLOCK_SIZE, MAX_SDP_BLOCK_SIZE)
+    # U3_ = Matrix{Float64}(undef, MAX_SDP_BLOCK_SIZE, MAX_SDP_BLOCK_SIZE)
+
+    m_indices = [Int64[] for j = 1:nblocks if sdp_blocks_indices[j] > 0]
+    for j = 1:nblocks
+        if sdp_blocks_indices[j] > 0
+            index = sdp_blocks_indices[j]
+            for k = 1:prb.m
+                if nnz(prb.A[blocks[j], k]) > 0
+                    push!(m_indices[index], k)
+                end
+            end
+        end
+    end
 
     #=
     Additional memory to solve for Δy.
@@ -78,13 +94,13 @@ function solve!(prb::inner_problem)
     hh = Matrix{Float64}(undef, prb.m, 1)
 
     H1 = zeros(Float64, size(Rd))
-    H2 = zeros(Float64, size(X0))
+    H2 = zeros(Float64, size(prb.X))
 
     #=
     Steps
     =#
-    δX = Vector{Float64}(undef, size(X0))
-    δS = Vector{Float64}(undef, size(S0))
+    δX = Vector{Float64}(undef, size(prb.X))
+    δS = Vector{Float64}(undef, size(prb.S))
     δy = zeros(Float64, prb.m)
 
     αs = zeros(Float64, length(ns)-1)  # Computation of max. step-length
@@ -99,7 +115,9 @@ function solve!(prb::inner_problem)
     =#
 
     # We take the matrix Aᵢ with most non-zero elements.
-    NNZ_MAX = maximum(nnz(prb.A[:, col]) for col = 1:size(prb.A,2))
+    # NNZ_MAX = maximum(nnz(prb.A[:, col]) for col = 1:size(prb.A,2))
+    NNZ_MAX = maximum(nnz(prb.A[blocks[j], col]) for col = 1:size(prb.A, 2) for j = 1:nblocks if sdp_blocks_indices[j] > 0)
+    # println("new, old: ", NNZ_MAX, ", ", NNZ_MAX_prev)
     # We take the biggest semidefinite block.
     N_MAX = (n_sdp_blocks > 0) ? maximum(abs(ns[j+1]) for j in 1:nblocks if sdp_blocks_indices[j] > 0) : 1
     # The vectors needed for a CSC sparse matrix.
@@ -115,30 +133,41 @@ function solve!(prb::inner_problem)
     #=
     Main loop
     =#
-    while (relgap > solution_relgap) || (φ > solution_φ)
+    @inbounds while (relgap > solution_relgap) || (φ > solution_φ)
         @views @inbounds for j = 1:nblocks
             if sdp_blocks_indices[j] > 0
                 index = sdp_blocks_indices[j]
 
-                fast_smat!(L[index], X0[blocks[j]])  # Devectorize the matrices.
-                fast_smat!(R[index], S0[blocks[j]])
+                fast_smat!(L[index], prb.X[blocks[j]])  # Devectorize the matrices.
+                fast_smat!(R[index], prb.S[blocks[j]])
 
+                # BLAS.symm!('L','U', -1.0, L[index], R[index], 0.0, U2[index])
                 LAPACK.potrf!('U', L[index])         # Compute Cholesky factorizations.
                 LAPACK.potrf!('U', R[index])
 
-                copyto!(U5[index], 1.0I)             # R\I ← U5
-                LAPACK.trtrs!('U', 'N', 'N', R[index], U5[index])
+                # copyto!(U5[index], 1.0I)             # R\I ← U5
+                # LAPACK.trtrs!('U', 'N', 'N', R[index], U5[index])
 
-                triu!(L[index])
+                # triu!(L[index])
                 triu!(R[index])
 
-                BLAS.gemm!('N','T', 1.0, R[index], L[index], 0.0, U[index])
+                # BLAS.gemm!('N','T', 1.0, R[index], L[index], 0.0, U[index])
+                # copyto!(U[index], R[index])
+                BLAS.blascopy!(length(U[index]), R[index], 1, U[index], 1)
+                BLAS.trmm!('R','U','T','N', 1.0, L[index], U[index])
                 BLAS.syrk!('U','N', -1.0, U[index], 0.0, U2[index])
 
                 svec!(Rc[blocks[j]], U2[index])
+            # @time begin
+                # BLAS.blascopy!(SDP_SIZE[index]^2, R[index], 1, U_[1:SDP_SIZE[index],1:SDP_SIZE[index]], 1)
+                # BLAS.trmm!('R','U','T','N', 1.0, L[index], U_[1:SDP_SIZE[index],1:SDP_SIZE[index]])
+                # BLAS.syrk!('U','N', -1.0, U_[1:SDP_SIZE[index],1:SDP_SIZE[index]], 0.0, U2_[1:SDP_SIZE[index],1:SDP_SIZE[index]])
+                #
+                # svec!(Rc[blocks[j]], U2_[1:SDP_SIZE[index],1:SDP_SIZE[index]])
+            # end
             else
                 for i in blocks[j]
-                    Rc[i] = -X0[i]*S0[i]
+                    Rc[i] = -prb.X[i]*prb.S[i]
                 end
             end
         end
@@ -148,13 +177,13 @@ function solve!(prb::inner_problem)
         =#
         BLAS.blascopy!(prb.m, prb.b, 1, rp, 1)
         BLAS.blascopy!(n, prb.C, 1, Rd, 1)
-        BLAS.axpy!(-1.0, S0, Rd)
+        BLAS.axpy!(-1.0, prb.S, Rd)
 
-        MKLSparse.BLAS.cscmv!('T', -1.0, "GU2F", prb.A, X0, 1.0, rp)
-        MKLSparse.BLAS.cscmv!('N', -1.0, "GU2F", prb.A, y0, 1.0, Rd)
+        MKLSparse.BLAS.cscmv!('T', -1.0, "GU2F", prb.A, prb.X, 1.0, rp)
+        MKLSparse.BLAS.cscmv!('N', -1.0, "GU2F", prb.A, prb.y, 1.0, Rd)
 
-        μ = BLAS.dot(X0, S0) / N
-        relgap = BLAS.dot(X0, S0) / (1.0 + max(abs(BLAS.dot(prb.C, X0)), abs(BLAS.dot(prb.b, y0))))
+        μ = BLAS.dot(prb.X, prb.S) / N
+        relgap = BLAS.dot(prb.X, prb.S) / (1.0 + max(abs(BLAS.dot(prb.C, prb.X)), abs(BLAS.dot(prb.b, prb.y))))
         pinfeas = norm(rp) / (1.0 + norm(prb.b))
         dinfeas = norm(Rd) / (1.0 + norm(prb.C))
         φ = max(pinfeas, dinfeas)
@@ -163,37 +192,47 @@ function solve!(prb::inner_problem)
             if sdp_blocks_indices[j] > 0
                 index = sdp_blocks_indices[j]
 
-                @views fast_smat!(U[index], X0[blocks[j]])
+                @views fast_smat!(U[index], prb.X[blocks[j]])
 
-                @views copyto!(U2[index], 1.0I)
-                @views BLAS.trsm!('L','U','T','N', 1.0, R[index], U2[index])
-                @views BLAS.trsm!('L','U','N','N', 1.0, R[index], U2[index])
+                # @views copyto!(U2[index], 1.0I)
+                # @views BLAS.trsm!('L','U','T','N', 1.0, R[index], U2[index])
+                # @views BLAS.trsm!('L','U','N','N', 1.0, R[index], U2[index])
 
-                for k = 1:prb.m
-                    sparse_A_mul(U4[index], prb.A[blocks[j], k], U[index], col_cache, row_cache, nnz_cache)
-                    @views BLAS.symm!('L','U', 1.0, U2[index], U4[index], 0.0, U3[index])
-                    @views add_transpose!(U3[index])
-                    @views svec!(BB[blocks[j], k], U3[index])
+                # for k = 1:prb.m
+                for k in m_indices[index]
+                    # if iter== 3 && all(prb.A[blocks[j], k] .== 0.0)
+                    #     count_zero += 1
+                    # end
+                    sparse_A_mul(U2[index], prb.A[blocks[j], k], U[index], col_cache, row_cache, nnz_cache)
+                    # @views BLAS.symm!('L','U', 1.0, U2[index], U4[index], 0.0, U3[index])
+                    @views BLAS.trsm!('L','U','T','N', 1.0, R[index], U2[index])
+                    @views BLAS.trsm!('L','U','N','N', 1.0, R[index], U2[index])
+                    @views add_transpose!(U2[index])
+                    @views svec!(BB[blocks[j], k], U2[index])
                 end
 
-                @views fast_smat!(U3[index], Rd[blocks[j]])
-                @views BLAS.symm!('R','U', 1.0, U[index], U3[index], 0.0, U4[index])
-                @views BLAS.symm!('L','U', 1.0, U2[index], U4[index], 0.0, U3[index])
+                @views fast_smat!(U2[index], Rd[blocks[j]])
+                @views BLAS.symm!('R','U', 1.0, U[index], U2[index], 0.0, U3[index])
+                # @views BLAS.symm!('L','U', 1.0, U2[index], U4[index], 0.0, U3[index])
+                @views BLAS.trsm!('L','U','T','N', 1.0, R[index], U3[index])
+                @views BLAS.trsm!('L','U','N','N', 1.0, R[index], U3[index])
                 @views add_transpose!(U3[index])
                 @views svec!(H1[blocks[j]], U3[index])
 
-                @views fast_smat!(U3[index], Rc[blocks[j]])
-                @views BLAS.trmm!('R','U','T','N', 1.0, U5[index], U3[index])
-                @views BLAS.trmm!('L','U','N','N', 1.0, U5[index], U3[index])
-                @views add_transpose!(U3[index])
-                @views svec!(H2[blocks[j]], U3[index])
+                @views fast_smat!(U2[index], Rc[blocks[j]])
+                # @views BLAS.trmm!('R','U','T','N', 1.0, U5[index], U3[index])
+                # @views BLAS.trmm!('L','U','N','N', 1.0, U5[index], U3[index])
+                @views BLAS.trsm!('L','U','N','N', 1.0, R[index], U2[index])
+                @views BLAS.trsm!('R','U','T','N', 1.0, R[index], U2[index])
+                @views add_transpose!(U2[index])
+                @views svec!(H2[blocks[j]], U2[index])
             else
                 @views for i in blocks[j]
                     for k = 1:prb.m
-                        BB[i, k] = prb.A[i,k]*X0[i]/S0[i]
+                        BB[i, k] = prb.A[i,k]*prb.X[i]/prb.S[i]
                     end
-                    H1[i] = Rd[i]*X0[i]/S0[i]
-                    H2[i] = Rc[i]/S0[i]
+                    H1[i] = Rd[i]*prb.X[i]/prb.S[i]
+                    H2[i] = Rc[i]/prb.S[i]
                 end
             end
         end
@@ -219,19 +258,21 @@ function solve!(prb::inner_problem)
         @views for j = 1:nblocks
             if sdp_blocks_indices[j] > 0
                 index = sdp_blocks_indices[j]
-                fast_smat!(U3[index], δS[blocks[j]]) # S\I * δS * X
-                BLAS.symm!('L','U', 1.0, U3[index], U[index], 0.0, U4[index])
-                BLAS.symm!('L','U', 1.0, U2[index], U4[index], 0.0, U3[index])
+                fast_smat!(U2[index], δS[blocks[j]]) # S\I * δS * X
+                BLAS.symm!('L','U', 1.0, U2[index], U[index], 0.0, U3[index])
+                # BLAS.symm!('L','U', 1.0, U2[index], U4[index], 0.0, U3[index])
+                BLAS.trsm!('L','U','T','N', 1.0, R[index], U3[index])
+                BLAS.trsm!('L','U','N','N', 1.0, R[index], U3[index])
                 add_transpose!(U3[index])
                 svec!(δX[blocks[j]], U3[index])
             else
                 for i in blocks[j]
-                    δX[i] = δS[i]*X0[i]/S0[i]
+                    δX[i] = δS[i]*prb.X[i]/prb.S[i]
                 end
             end
         end
 
-        BLAS.axpby!(-1.0, X0, -1.0, δX)
+        BLAS.axpby!(-1.0, prb.X, -1.0, δX)
 
         #=
         Computation of the minimum eigenvalues.
@@ -245,13 +286,13 @@ function solve!(prb::inner_problem)
                 BLAS.trsm!('L','U','T','N', 1.0, L[index], U[index])
                 λ_a = LAPACK.syevr!('N','I','U', U[index], 0.0, 0.0, 1, 1, 1e-6)[1][1]
 
-                fast_smat!(U2[index], δS[blocks[j]])
-                BLAS.trsm!('R','U','N','N', 1.0, R[index], U2[index])
-                BLAS.trsm!('L','U','T','N', 1.0, R[index], U2[index])
-                λ_b = LAPACK.syevr!('N','I','U', U2[index], 0.0, 0.0, 1, 1, 1e-6)[1][1]
+                fast_smat!(U[index], δS[blocks[j]])
+                BLAS.trsm!('R','U','N','N', 1.0, R[index], U[index])
+                BLAS.trsm!('L','U','T','N', 1.0, R[index], U[index])
+                λ_b = LAPACK.syevr!('N','I','U', U[index], 0.0, 0.0, 1, 1, 1e-6)[1][1]
             else
-                λ_a = minimum(δX[blocks[j]] ./ X0[blocks[j]])
-                λ_b = minimum(δS[blocks[j]] ./ S0[blocks[j]])
+                λ_a = minimum(δX[blocks[j]] ./ prb.X[blocks[j]])
+                λ_b = minimum(δS[blocks[j]] ./ prb.S[blocks[j]])
             end
             αs[j] = (λ_a < 0.0) ? -1.0/λ_a : Inf
             βs[j] = (λ_b < 0.0) ? -1.0/λ_b : Inf
@@ -273,10 +314,10 @@ function solve!(prb::inner_problem)
             exp = 1
         end
 
-        if dot(X0+α*δX, S0+β*δS) < 0.0
+        if dot(prb.X+α*δX, prb.S+β*δS) < 0.0
             σ = 0.8
         else
-            frac = dot(X0+α*δX, S0+β*δS)/dot(X0, S0)
+            frac = dot(prb.X+α*δX, prb.S+β*δS)/dot(prb.X, prb.S)
             σ = min(1.0, frac^exp)
         end
 
@@ -303,30 +344,29 @@ function solve!(prb::inner_problem)
         @views for j = 1:nblocks
             if sdp_blocks_indices[j] > 0
                 index = sdp_blocks_indices[j]
-                fast_smat!(U[index], X0[blocks[j]])
+                fast_smat!(U[index], prb.X[blocks[j]])
                 fast_smat!(U2[index], Rd[blocks[j]])
 
-                copyto!(U3[index], 1.0I)
-
+                BLAS.symm!('L','U', 1.0, U2[index], U[index], 0.0, U3[index])
+                # BLAS.symm!('L','U', 1.0, U3[index], U4[index], 0.0, U2[index])
                 BLAS.trsm!('L','U','T','N', 1.0, R[index], U3[index])
                 BLAS.trsm!('L','U','N','N', 1.0, R[index], U3[index])
 
-                BLAS.symm!('L','U', 1.0, U2[index], U[index], 0.0, U4[index])
-                BLAS.symm!('L','U', 1.0, U3[index], U4[index], 0.0, U2[index])
+                add_transpose!(U3[index])
+                svec!(H1[blocks[j]], U3[index])
 
-                add_transpose!(U2[index])
-                svec!(H1[blocks[j]], U2[index])
+                fast_smat!(U3[index], Rc[blocks[j]])
+                # BLAS.trmm!('R','U','T','N', 1.0, U5[index], U4[index])
+                # BLAS.trmm!('L','U','N','N', 1.0, U5[index], U4[index])
+                BLAS.trsm!('L','U','N','N', 1.0, R[index], U3[index])
+                BLAS.trsm!('R','U','T','N', 1.0, R[index], U3[index])
 
-                fast_smat!(U4[index], Rc[blocks[j]])
-                BLAS.trmm!('R','U','T','N', 1.0, U5[index], U4[index])
-                BLAS.trmm!('L','U','N','N', 1.0, U5[index], U4[index])
-
-                add_transpose!(U4[index])
-                svec!(H2[blocks[j]], U4[index])
+                add_transpose!(U3[index])
+                svec!(H2[blocks[j]], U3[index])
             else
                 for i in blocks[j]
-                    H1[i] = Rd[i]*X0[i]/S0[i]
-                    H2[i] = Rc[i]/S0[i]
+                    H1[i] = Rd[i]*prb.X[i]/prb.S[i]
+                    H2[i] = Rc[i]/prb.S[i]
                 end
             end
         end
@@ -347,18 +387,26 @@ function solve!(prb::inner_problem)
         MKLSparse.BLAS.cscmv!('N', -1.0, "GU2F", prb.A, δy, 1.0, δS)
 
         # ΔX
-        @views for j = 1:nblocks
+        @views @inbounds for j = 1:nblocks
             if sdp_blocks_indices[j] > 0
                 index = sdp_blocks_indices[j]
                 fast_smat!(U2[index], δS[blocks[j]])
 
-                BLAS.symm!('L','U', 1.0, U2[index], U[index], 0.0, U4[index])
-                BLAS.symm!('L','U', 1.0, U3[index], U4[index], 0.0, U2[index])
-                add_transpose!(U2[index])
-                svec!(H1[blocks[j]], U2[index])
+                # copyto!(U3[index], 1.0I)
+                # BLAS.trsm!('L','U','T','N', 1.0, R[index], U3[index])
+                # BLAS.trsm!('L','U','N','N', 1.0, R[index], U3[index])
+                #
+                # BLAS.symm!('L','U', 1.0, U2[index], U[index], 0.0, U4[index])
+                # BLAS.symm!('L','U', 1.0, U3[index], U4[index], 0.0, U2[index])
+                BLAS.trsm!('L','U','T','N', 1.0, R[index], U2[index])
+                BLAS.trsm!('L','U','N','N', 1.0, R[index], U2[index])
+                BLAS.symm!('R','U', 1.0, U[index], U2[index], 0.0, U3[index])
+
+                add_transpose!(U3[index])
+                svec!(H1[blocks[j]], U3[index])
             else
                 for i in blocks[j]
-                    @inbounds H1[i] = δS[i]*X0[i]/S0[i]
+                    H1[i] = δS[i]*prb.X[i]/prb.S[i]
                 end
             end
         end
@@ -377,14 +425,14 @@ function solve!(prb::inner_problem)
                 BLAS.trsm!('L','U','T','N', 1.0, L[index], U[index])
                 λ_a = LAPACK.syev!('N','U', U[index])[1]
 
-                fast_smat!(U2[index], δS[blocks[j]])
-                BLAS.trsm!('R','U','N','N', 1.0, R[index], U2[index])
-                BLAS.trsm!('L','U','T','N', 1.0, R[index], U2[index])
-                λ_b = LAPACK.syev!('N','U', U2[index])[1]
+                fast_smat!(U[index], δS[blocks[j]])
+                BLAS.trsm!('R','U','N','N', 1.0, R[index], U[index])
+                BLAS.trsm!('L','U','T','N', 1.0, R[index], U[index])
+                λ_b = LAPACK.syev!('N','U', U[index])[1]
 
             else
-                λ_a = minimum(δX[blocks[j]] ./ X0[blocks[j]])
-                λ_b = minimum(δS[blocks[j]] ./ S0[blocks[j]])
+                λ_a = minimum(δX[blocks[j]] ./ prb.X[blocks[j]])
+                λ_b = minimum(δS[blocks[j]] ./ prb.S[blocks[j]])
             end
             αs[j] = (λ_a < 0.0) ? -1.0/λ_a : Inf
             βs[j] = (λ_b < 0.0) ? -1.0/λ_b : Inf
@@ -395,16 +443,16 @@ function solve!(prb::inner_problem)
 
         g = 0.9 + 0.09*min(α, β)  # adaptative update
 
-        BLAS.axpy!(α, δX, X0)
-        BLAS.axpy!(β, δS, S0)
-        BLAS.axpy!(β, δy, y0)
+        BLAS.axpy!(α, δX, prb.X)
+        BLAS.axpy!(β, δS, prb.S)
+        BLAS.axpy!(β, δy, prb.y)
 
         pinfeas = norm(rp) / (1.0 + norm(prb.b))
         dinfeas = norm(Rd) / (1.0 + norm(prb.C))
 
         # Print iteration info if verbose
         if prb.verbose == true
-            @printf("%2d     |  %.3e     |  %.3e\n", iter, BLAS.dot(prb.C, X0), BLAS.dot(prb.b, y0))
+            @printf("%2d     |  %.3e     |  %.3e\n", iter, BLAS.dot(prb.C, prb.X), BLAS.dot(prb.b, prb.y))
         end
 
         iter += 1
@@ -416,30 +464,30 @@ function solve!(prb::inner_problem)
 
     # Print the last iteration info
     if prb.verbose == true
-        @printf("%2d     |  %.3e     |  %.3e\n", iter, BLAS.dot(prb.C, X0), BLAS.dot(prb.b, y0))
+        @printf("%2d     |  %.3e     |  %.3e\n", iter, BLAS.dot(prb.C, prb.X), BLAS.dot(prb.b, prb.y))
     end
 
     # Infeasibility tests
     inftol = 1e-8
-    if BLAS.dot(prb.b, y0) / norm(prb.A*y0 + S0) > 1/inftol
+    if BLAS.dot(prb.b, prb.y) / norm(prb.A*prb.y + prb.S) > 1/inftol
         println("Primal likely infeasible")
     end
-    if -BLAS.dot(prb.C, X0) / norm(prb.A'*X0) > 1/inftol
+    if -BLAS.dot(prb.C, prb.X) / norm(prb.A'*prb.X) > 1/inftol
         println("Dual likely infeasible")
     end
 
     prb.num_iters = iter
 
     @views for j = 1:length(ns)-1
-        X0[blocks[j]] *= (prb.normb / prb.normsA[j])
-        S0[blocks[j]] *= (prb.normC * prb.normsA[j])
+        prb.X[blocks[j]] *= (prb.normb / prb.normsA[j])
+        prb.S[blocks[j]] *= (prb.normC * prb.normsA[j])
     end
 
-    y0 *= prb.normC
+    prb.y *= prb.normC
 
-    @. prb.X = X0
-    @. prb.y = y0
-    @. prb.S = S0
+    # @. prb.X = prb.X
+    # @. prb.y = prb.y
+    # @. prb.S = prb.S
     lmul!(prb.normb, prb.b)
 
     # Unscaling
@@ -450,8 +498,8 @@ function solve!(prb::inner_problem)
 
     if prb.verbose == true
         println("")
-        println("Primal value: ", BLAS.dot(prb.C, X0))
-        println("Dual value: ", BLAS.dot(prb.b, y0))
+        println("Primal value: ", BLAS.dot(prb.C, prb.X))
+        println("Dual value: ", BLAS.dot(prb.b, prb.y))
         println("N iters: ", iter)
     end
 end
